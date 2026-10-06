@@ -20,7 +20,7 @@ const updateSchedule = catchAsync(async (req, res) => {
   sendResponse(res, {
     statusCode: 201,
     success: true,
-    message: "Schedule create successfully!",
+    message: "Schedule update successfully!",
     data: result,
   });
 });

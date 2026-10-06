@@ -90,6 +90,8 @@ export const getBusinessHoursSchema = z
   })
   .strict();
 
+  
+
 export const scheduleSchema = {
   createBusinessHoursSchema,
   createManyBusinessHoursSchema,

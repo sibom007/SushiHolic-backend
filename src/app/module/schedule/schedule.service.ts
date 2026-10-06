@@ -13,27 +13,6 @@ import {
 import { TAuthUser } from "../../../utils/supabase";
 import { findUserOrThrow } from "../../../utils/findUserOrThrow";
 
-// const createScheduleInToDB = async (
-//   payload: createBusinessHoursInput | createManyBusinessHoursInput,
-//   AuthUser: TAuthUser,
-// ): Promise<BusinessHours | Prisma.BatchPayload> => {
-//   const existUser = await findUserOrThrow(AuthUser.id);
-
-//   if ("schedules" in payload) {
-//     const schedulesWithCreator = payload.schedules.map((schedule) => ({
-//       ...schedule,
-//       creatorId: existUser.id,
-//     }));
-//     return await db.businessHours.createMany({
-//       data: schedulesWithCreator,
-//     });
-//   } else {
-//     return await db.businessHours.create({
-//       data: { ...payload, creatorId: existUser.id },
-//     });
-//   }
-// };
-
 const createScheduleInToDB = async (
   payload: createBusinessHoursInput | createManyBusinessHoursInput,
   AuthUser: TAuthUser,
@@ -305,6 +284,13 @@ const getCurrentWeekScheduleInToDB = async () => {
     },
     orderBy: {
       date: "asc",
+    },
+    include: {
+      createdBy: {
+        select: {
+          email: true,
+        },
+      },
     },
   });
 
