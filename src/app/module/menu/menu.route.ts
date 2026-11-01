@@ -58,8 +58,10 @@ router.get(
   menuContorler.getMenuCategory,
 );
 
+//// menuItem ////
+
 router.post(
-  "/items",
+  "/items-create",
   requireAuth(UserRole.OWNER),
   createRateLimiter({ limit: 100 }),
   validateRequest({ body: menuSchema.createMenuItemSchema }),
@@ -96,6 +98,40 @@ router.get(
   createRateLimiter({ limit: 100 }),
   validateRequest({ query: menuSchema.getMenuItemsQuerySchema }),
   menuContorler.getMenuItems,
+);
+
+//// menu Addons ////
+
+router.post(
+  "/addon-create",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  validateRequest({ body: menuSchema.createAddonSchema }),
+  menuContorler.createAddon,
+);
+
+router.patch(
+  "/addon-update",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  validateRequest({ body: menuSchema.updateAddonSchema }),
+  menuContorler.updateAddon,
+);
+
+router.delete(
+  "/addon-delete/:id",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  validateRequest({ params: menuSchema.deleteAddonSchema }),
+  menuContorler.deleteAddon,
+);
+
+router.get(
+  "/addons",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  validateRequest({ query: menuSchema.getAddonsSchema }),
+  menuContorler.getAddons,
 );
 
 export const menuRoutes = router;

@@ -36,3 +36,8 @@ export type bulkDeleteMenuItemInput = z.infer<
 export type getMenuItemsQueryInput = z.infer<
   typeof menuSchema.getMenuItemsQuerySchema
 >;
+
+export type createAddonInput = z.infer<typeof menuSchema.createAddonSchema>;
+export type updateAddonInput = z.infer<typeof menuSchema.updateAddonSchema>;
+export type deleteAddonParams = z.infer<typeof menuSchema.deleteAddonSchema>;
+export type getAddonsInput = z.infer<typeof menuSchema.getAddonsSchema>;

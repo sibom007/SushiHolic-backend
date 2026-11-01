@@ -72,6 +72,7 @@ model MenuCategory {
   id        String     @id @default(uuid())
   name      String     @unique
   items     MenuItem[]
+  addons    Addon[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -79,37 +80,32 @@ model MenuCategory {
 }
 
 model MenuItem {
-  id          String      @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   description String?
-  price       Decimal     @db.Decimal(10, 2)
+  price       Decimal  @db.Decimal(10, 2)
   imageUrl    String?
-  isAvailable Boolean     @default(true)
-  isDelete    Boolean     @default(false)
+  isAvailable Boolean  @default(true)
 
   categoryId  String
   category    MenuCategory @relation(fields: [categoryId], references: [id])
 
   addons      Addon[]
-  orderItems  OrderItem[]
-
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  orderItems OrderItem[]
 
   @@map("menu_items")
 }
 
 model Addon {
-  id         String   @id @default(uuid())
+  id         String  @id @default(uuid())
   name       String
-  price      Decimal  @db.Decimal(10, 2)
+  price      Decimal @db.Decimal(10, 2)
   isAvailable Boolean @default(true)
 
   menuItemId String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  categoryId  String
+  category    MenuCategory @relation(fields: [categoryId], references: [id])
 
   @@map("addons")
 }
@@ -122,45 +118,44 @@ model Order {
   type          OrderType   @default(DINE_IN)
   status        OrderStatus @default(PENDING)
 
-  subtotal      Decimal     @db.Decimal(10, 2)
-  deliveryFee   Decimal     @default(0) @db.Decimal(10, 2)
-  total         Decimal     @db.Decimal(10, 2)
+  subtotal      Decimal @db.Decimal(10, 2)
+  deliveryFee   Decimal @default(0) @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
   notes         String?
 
   items         OrderItem[]
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt     DateTime @default(now())
 
   @@index([status, createdAt])
   @@map("orders")
 }
 
 model OrderItem {
-  id           String      @id @default(uuid())
-  quantity     Int
-  unitPrice    Decimal     @db.Decimal(10, 2)
-  subtotal     Decimal     @db.Decimal(10, 2)
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
 
-  orderId      String
-  order        Order       @relation(fields: [orderId],references: [id],onDelete: Cascade)
+  orderId   String
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  menuItemId   String
-  menuItem     MenuItem    @relation(fields: [menuItemId],references: [id],onDelete: Restrict)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
 
-  addons       OrderItemAddon[]
+  addons     OrderItemAddon[]
 
   @@map("order_items")
 }
 
 model OrderItemAddon {
-  id          String    @id @default(uuid())
+  id          String  @id @default(uuid())
   name        String
-  price       Decimal   @db.Decimal(10, 2)
-  quantity    Int       @default(1)
+  price       Decimal @db.Decimal(10, 2)
+  quantity    Int     @default(1)
 
   orderItemId String
-  orderItem   OrderItem @relation(fields: [orderItemId],references: [id],onDelete: Cascade)
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@map("order_item_addons")
 }

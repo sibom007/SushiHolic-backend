@@ -1,20 +1,24 @@
 import { z } from "zod";
 
+const id = z.uuid("Invalid ID format");
+const page = z.string().min(1).default("1");
+const limit = z.string().min(1).max(20).default("6");
+
 const createMenuCategorySchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255, "To long"),
 });
 
 const updateMenuCategorySchema = z.object({
-  id: z.uuid(),
+  id,
   name: z.string().trim().min(1, "Name is required").max(255, "To long"),
 });
 
 const deleteMenuCategorySchema = z.object({
-  id: z.uuid(),
+  id,
 });
 
 const bulkDeleteMenuCategorySchema = z.object({
-  ids: z.array(z.uuid()).min(1, "At least one ID is required"),
+  ids: z.array(id).min(1, "At least one ID is required"),
 });
 
 export const getMenuCategorySchema = z
@@ -27,44 +31,58 @@ export const getMenuCategorySchema = z
 
 //////////// MenuItems  //////////////
 
-const createMenuItemSchema = z.object({
-  name: z
-    .string({ error: "Name is required" })
-    .min(1, "Name cannot be empty")
-    .max(255, "to long"),
-  description: z.string().optional(),
-  price: z
-    .number({ error: "Price is required" })
-    .positive("Price must be greater than zero"),
-  imageUrl: z.url("Invalid image URL format"),
-  isAvailable: z.boolean().optional(),
-  categoryId: z.uuid("Invalid Category ID format"),
+const ManuItemName = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters")
+  .max(100, "Name must not exceed 100 characters");
+
+const ManuItemDescription = z
+  .string()
+  .trim()
+  .max(500, "Description must not exceed 500 characters")
+  .nullable()
+  .optional();
+
+const ManuItemPrice = z
+  .number({
+    message: "Price must be a valid number",
+  })
+  .min(0, "Price cannot be negative");
+
+const ManuItemImageUrl = z.string().url("Please provide a valid image URL");
+
+const ManuItemisAvailable = z
+  .boolean({
+    message: "Availability must be true or false",
+  })
+  .default(true);
+
+export const createMenuItemSchema = z.object({
+  name: ManuItemName,
+  description: ManuItemDescription,
+  price: ManuItemPrice,
+  imageUrl: ManuItemImageUrl,
+  isAvailable: ManuItemisAvailable,
+  categoryId: id,
 });
 
-const updateMenuItemSchema = z.object({
-  id: z.uuid("Invalid ID format"),
-  name: z
-    .string()
-    .min(1, "Name cannot be empty")
-    .max(255, "To long")
-    .optional(),
-  description: z.string().optional(),
-  price: z.number().positive("Price must be greater than zero").optional(),
-  imageUrl: z.url("Invalid image URL format").optional(),
-  isAvailable: z.boolean().optional(),
-  categoryId: z.uuid("Invalid Category ID format").optional(),
-  isDelete: z.boolean().optional(),
+export const updateMenuItemSchema = z.object({
+  id,
+  name: ManuItemName,
+  description: ManuItemDescription,
+  price: ManuItemPrice,
+  imageUrl: ManuItemImageUrl,
+  isAvailable: ManuItemisAvailable,
 });
 
 const deleteMenuItemSchema = z.object({
-  id: z.uuid("Invalid ID format"),
+  id,
   type: z.enum(["hard", "soft"]).default("soft"),
 });
 
 const bulkDeleteMenuItemSchema = z.object({
-  ids: z
-    .array(z.uuid("Invalid ID format"))
-    .min(1, "At least one ID is required for bulk delete"),
+  ids: z.array(id).min(1, "At least one ID is required for bulk delete"),
   type: z.enum(["hard", "soft"]).default("soft"),
 });
 
@@ -75,10 +93,10 @@ const booleanQuerySchema = z.preprocess((val) => {
 }, z.boolean().optional());
 
 const getMenuItemsQuerySchema = z.object({
-  page: z.string().min(1).default("1"),
-  limit: z.string().min(1).max(20).default("6"),
+  page,
+  limit,
   searchTerm: z.string().trim().optional(), // Searches both name & description
-  categoryId: z.uuid("Invalid category ID format").optional(),
+  categoryId: id.optional(),
   minPrice: z.coerce.number().nonnegative("Min price must be >= 0").optional(),
   maxPrice: z.coerce.number().positive("Max price must be > 0").optional(),
   isAvailable: booleanQuerySchema,
@@ -89,15 +107,72 @@ const getMenuItemsQuerySchema = z.object({
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
+////// addons /////
+
+const AddonName = z
+  .string()
+  .trim()
+
+  .min(2, "Name must be at least 2 characters")
+  .max(100, "Name must not exceed 100 characters");
+const AddonPrice = z
+  .number({
+    message: "Price must be a valid number",
+  })
+  .min(0, "Price cannot be negative");
+
+const AddonsIsAvailable = z
+  .boolean({
+    message: "Availability must be true or false",
+  })
+  .default(true);
+
+const createAddonSchema = z.object({
+  name: AddonName,
+  price: AddonPrice,
+  isAvailable: AddonsIsAvailable,
+  categoryId: id,
+  menuItemId: id,
+});
+
+const updateAddonSchema = z.object({
+  id: id,
+  name: AddonName.optional(),
+  price: AddonPrice.optional(),
+  isAvailable: AddonsIsAvailable.optional(),
+  categoryId: id.optional(),
+  menuItemId: id.optional(),
+});
+
+const deleteAddonSchema = z.object({
+  addonId: id,
+});
+
+const getAddonsSchema = z.object({
+  page,
+  limit,
+  name: AddonName,
+  price: AddonPrice,
+  isAvailable: AddonsIsAvailable,
+});
+
 export const menuSchema = {
   createMenuCategorySchema,
   updateMenuCategorySchema,
   deleteMenuCategorySchema,
   bulkDeleteMenuCategorySchema,
   getMenuCategorySchema,
+
+  //// menuItem ////
   createMenuItemSchema,
   updateMenuItemSchema,
   deleteMenuItemSchema,
   bulkDeleteMenuItemSchema,
   getMenuItemsQuerySchema,
+
+  //// addons////
+  createAddonSchema,
+  updateAddonSchema,
+  deleteAddonSchema,
+  getAddonsSchema,
 };

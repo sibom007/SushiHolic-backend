@@ -5,12 +5,16 @@ import status from "http-status";
 import {
   bulkDeleteMenuCategoryInput,
   bulkDeleteMenuItemInput,
+  createAddonInput,
   createMenuCategoryInput,
   createMenuItemInput,
+  deleteAddonParams,
   deleteMenuCategoryInput,
   deleteMenuItemParams,
+  getAddonsInput,
   getMenuCategoryInput,
   getMenuItemsQueryInput,
+  updateAddonInput,
   updateMenuCategoryInput,
   updateMenuItemInput,
 } from "./menu.types";
@@ -150,7 +154,6 @@ const getMenuCategoryInToDB = async (query: getMenuCategoryInput) => {
 };
 
 //////////// MenuItems  //////////////
-
 const createMenuItemInToDB = async (payload: createMenuItemInput) => {
   // Check if the provided categoryId actually exists
   const isCategoryExists = await db.menuCategory.findUnique({
@@ -179,20 +182,6 @@ const updateMenuItemInToDB = async (payload: updateMenuItemInput) => {
 
   if (!existingItem) {
     throw new AppError(status.NOT_FOUND, "Menu Item not found!");
-  }
-
-  // If the update includes a new categoryId, verify the new category exists
-  if (payload.categoryId) {
-    const isCategoryExists = await db.menuCategory.findUnique({
-      where: { id: payload.categoryId },
-    });
-
-    if (!isCategoryExists) {
-      throw new AppError(
-        status.NOT_FOUND,
-        "The specified new Category was not found!",
-      );
-    }
   }
 
   const result = await db.menuItem.update({
@@ -271,7 +260,6 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
     minPrice,
     maxPrice,
     isAvailable,
-    isDelete = false,
     sortBy = "createdAt",
     sortOrder = "desc",
   } = query;
@@ -282,9 +270,6 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
 
   // Build dynamic Prisma filter query
   const where: Prisma.MenuItemWhereInput = {
-    // 1. Soft-delete filter (defaults to fetching non-deleted items)
-    isDelete: isDelete ?? false,
-
     // 2. Search term filter across name & description
     ...(searchTerm && {
       OR: [
@@ -356,6 +341,185 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
   };
 };
 
+//// addons ////
+
+const createAddonInToDB = async (payload: createAddonInput) => {
+  const [menuItem, category] = await Promise.all([
+    db.menuItem.findUnique({
+      where: { id: payload.menuItemId },
+      select: { id: true },
+    }),
+    db.menuCategory.findUnique({
+      where: { id: payload.categoryId },
+      select: { id: true },
+    }),
+  ]);
+
+  if (!menuItem) throw new AppError(status.NOT_FOUND, "Menu item not found");
+  if (!category)
+    throw new AppError(status.NOT_FOUND, "Menu category not found");
+
+  const existingAddon = await db.addon.findFirst({
+    where: {
+      name: { equals: payload.name, mode: "insensitive" },
+      menuItemId: payload.menuItemId,
+      categoryId: payload.categoryId,
+    },
+    select: { id: true },
+  });
+
+  if (existingAddon) {
+    throw new AppError(
+      status.CONFLICT,
+      "Addon already exists for this menu item and category",
+    );
+  }
+
+  return db.addon.create({
+    data: {
+      name: payload.name,
+      price: new Prisma.Decimal(payload.price),
+      isAvailable: payload.isAvailable,
+      menuItem: { connect: { id: payload.menuItemId } },
+      category: { connect: { id: payload.categoryId } },
+    },
+    include: {
+      menuItem: true,
+      category: true,
+    },
+  });
+};
+
+const updateAddonInToDB = async (payload: updateAddonInput) => {
+  const { id: addonId, ...input } = payload;
+
+  const existingAddon = await db.addon.findUnique({
+    where: { id: addonId },
+  });
+
+  if (!existingAddon) throw new AppError(status.NOT_FOUND, "Addon not found");
+
+  const data: Prisma.AddonUpdateInput = {};
+
+  const name = input.name;
+  const menuItemId = input.menuItemId ?? existingAddon.menuItemId;
+  const categoryId = input.categoryId ?? existingAddon.categoryId;
+
+  if (name !== undefined) {
+    const duplicate = await db.addon.findFirst({
+      where: {
+        id: { not: addonId },
+        name: { equals: name, mode: "insensitive" },
+        menuItemId,
+        categoryId,
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      throw new AppError(
+        status.CONFLICT,
+        "Addon already exists for this menu item and category",
+      );
+    }
+
+    data.name = name;
+  }
+
+  if (input.price !== undefined) {
+    data.price = new Prisma.Decimal(input.price);
+  }
+
+  if (input.isAvailable !== undefined) {
+    data.isAvailable = input.isAvailable;
+  }
+
+  if (input.menuItemId !== undefined) {
+    data.menuItem = { connect: { id: input.menuItemId } };
+  }
+
+  if (input.categoryId !== undefined) {
+    data.category = { connect: { id: input.categoryId } };
+  }
+
+  if (Object.keys(data).length === 0) {
+    throw new Error("Provide at least one field to update");
+  }
+
+  return db.addon.update({
+    where: { id: addonId },
+    data,
+    include: {
+      menuItem: true,
+      category: true,
+    },
+  });
+};
+
+const deleteAddonInToDB = async (payload: deleteAddonParams) => {
+  const existingAddon = await db.addon.findUnique({
+    where: { id: payload.addonId },
+    select: { id: true },
+  });
+
+  if (!existingAddon) throw new AppError(status.NOT_FOUND, "Addon not found");
+
+  return db.addon.delete({
+    where: { id: payload.addonId },
+  });
+};
+
+const getAddonInToDB = async (payload: getAddonsInput) => {
+  const page = Math.max(1, Number(payload.page) || 1);
+  const limit = Math.min(20, Math.max(1, Number(payload.limit) || 6));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.AddonWhereInput = {};
+
+  if (payload.name) {
+    where.name = {
+      contains: payload.name.trim(),
+      mode: "insensitive",
+    };
+  }
+
+  if (payload.price !== undefined) {
+    where.price = new Prisma.Decimal(payload.price);
+  }
+
+  if (payload.isAvailable !== undefined) {
+    where.isAvailable = payload.isAvailable;
+  }
+
+  const [addons, total] = await db.$transaction([
+    db.addon.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+      include: {
+        menuItem: true,
+        category: true,
+      },
+    }),
+    db.addon.count({ where }),
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data: addons,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1 && total > 0,
+    },
+  };
+};
+
 export const menuService = {
   createMenuCategoryInToDB,
   updateMenuCategoryInToDB,
@@ -367,4 +531,8 @@ export const menuService = {
   deleteMenuItemInToDB,
   bulkDeleteMenuItemInToDB,
   getMenuItemsInToDB,
+  createAddonInToDB,
+  deleteAddonInToDB,
+  updateAddonInToDB,
+  getAddonInToDB,
 };
