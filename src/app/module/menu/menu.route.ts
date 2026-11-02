@@ -58,6 +58,13 @@ router.get(
   menuContorler.getMenuCategory,
 );
 
+router.get(
+  "/get-menu-categoris-select",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  menuContorler.getMenuCategoryForSelect,
+);
+
 //// menuItem ////
 
 router.post(

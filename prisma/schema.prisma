@@ -102,8 +102,8 @@ model Addon {
   price      Decimal @db.Decimal(10, 2)
   isAvailable Boolean @default(true)
 
-  menuItemId String
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  menuItemId String?
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   categoryId  String
   category    MenuCategory @relation(fields: [categoryId], references: [id])
 

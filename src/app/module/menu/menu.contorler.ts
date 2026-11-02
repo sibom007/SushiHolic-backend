@@ -53,6 +53,15 @@ const getMenuCategory = catchAsync(async (req, res) => {
     data: result,
   });
 });
+const getMenuCategoryForSelect = catchAsync(async (req, res) => {
+  const result = await menuService.getMenuCategoriesForSelect();
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "menu Category successfully!",
+    data: result,
+  });
+});
 
 const createMenuItem = catchAsync(async (req, res) => {
   const result = await menuService.createMenuItemInToDB(req.body);
@@ -164,6 +173,7 @@ export const menuContorler = {
   deleteMenuCategory,
   bulkDeleteMenuCategory,
   getMenuCategory,
+  getMenuCategoryForSelect,
   createMenuItem,
   updateMenuItem,
   deleteMenuItem,

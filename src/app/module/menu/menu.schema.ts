@@ -132,7 +132,6 @@ const createAddonSchema = z.object({
   price: AddonPrice,
   isAvailable: AddonsIsAvailable,
   categoryId: id,
-  menuItemId: id,
 });
 
 const updateAddonSchema = z.object({
@@ -145,15 +144,36 @@ const updateAddonSchema = z.object({
 });
 
 const deleteAddonSchema = z.object({
-  addonId: id,
+  id,
 });
+
+// const getAddonsSchema = z.object({
+//   page,
+//   limit,
+//   name: AddonName.optional(),
+//   price: AddonPrice.optional(),
+//   isAvailable: AddonsIsAvailable.optional(),
+// });
 
 const getAddonsSchema = z.object({
   page,
   limit,
-  name: AddonName,
-  price: AddonPrice,
-  isAvailable: AddonsIsAvailable,
+
+  name: z
+    .string()
+    .trim()
+    .optional()
+    .transform((value) => value || undefined),
+
+  price: z.preprocess(
+    (value) => (value === "" || value == null ? undefined : value),
+    z.coerce.number().nonnegative().optional(),
+  ),
+
+  isAvailable: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === "true")),
 });
 
 export const menuSchema = {

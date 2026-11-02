@@ -153,6 +153,18 @@ const getMenuCategoryInToDB = async (query: getMenuCategoryInput) => {
   };
 };
 
+const getMenuCategoriesForSelect = async () => {
+  return db.menuCategory.findMany({
+    select: {
+      id: true,
+      name: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+};
+
 //////////// MenuItems  //////////////
 const createMenuItemInToDB = async (payload: createMenuItemInput) => {
   // Check if the provided categoryId actually exists
@@ -342,27 +354,19 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
 };
 
 //// addons ////
-
 const createAddonInToDB = async (payload: createAddonInput) => {
-  const [menuItem, category] = await Promise.all([
-    db.menuItem.findUnique({
-      where: { id: payload.menuItemId },
-      select: { id: true },
-    }),
-    db.menuCategory.findUnique({
-      where: { id: payload.categoryId },
-      select: { id: true },
-    }),
-  ]);
+  const category = await db.menuCategory.findUnique({
+    where: { id: payload.categoryId },
+    select: { id: true },
+  });
 
-  if (!menuItem) throw new AppError(status.NOT_FOUND, "Menu item not found");
-  if (!category)
+  if (!category) {
     throw new AppError(status.NOT_FOUND, "Menu category not found");
+  }
 
   const existingAddon = await db.addon.findFirst({
     where: {
       name: { equals: payload.name, mode: "insensitive" },
-      menuItemId: payload.menuItemId,
       categoryId: payload.categoryId,
     },
     select: { id: true },
@@ -371,7 +375,7 @@ const createAddonInToDB = async (payload: createAddonInput) => {
   if (existingAddon) {
     throw new AppError(
       status.CONFLICT,
-      "Addon already exists for this menu item and category",
+      "Addon already exists in this category",
     );
   }
 
@@ -380,11 +384,11 @@ const createAddonInToDB = async (payload: createAddonInput) => {
       name: payload.name,
       price: new Prisma.Decimal(payload.price),
       isAvailable: payload.isAvailable,
-      menuItem: { connect: { id: payload.menuItemId } },
-      category: { connect: { id: payload.categoryId } },
+      category: {
+        connect: { id: payload.categoryId },
+      },
     },
     include: {
-      menuItem: true,
       category: true,
     },
   });
@@ -458,14 +462,14 @@ const updateAddonInToDB = async (payload: updateAddonInput) => {
 
 const deleteAddonInToDB = async (payload: deleteAddonParams) => {
   const existingAddon = await db.addon.findUnique({
-    where: { id: payload.addonId },
+    where: { id: payload.id },
     select: { id: true },
   });
 
   if (!existingAddon) throw new AppError(status.NOT_FOUND, "Addon not found");
 
   return db.addon.delete({
-    where: { id: payload.addonId },
+    where: { id: payload.id },
   });
 };
 
@@ -526,6 +530,7 @@ export const menuService = {
   deleteMenuCategoryInToDB,
   bulkDeleteMenuCategoryInToDB,
   getMenuCategoryInToDB,
+  getMenuCategoriesForSelect,
   createMenuItemInToDB,
   updateMenuItemInToDB,
   deleteMenuItemInToDB,
