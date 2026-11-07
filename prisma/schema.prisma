@@ -73,6 +73,7 @@ model MenuCategory {
   name      String     @unique
   items     MenuItem[]
   addons    Addon[]
+
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -93,6 +94,9 @@ model MenuItem {
   addons      Addon[]
   orderItems OrderItem[]
 
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
   @@map("menu_items")
 }
 
@@ -104,8 +108,13 @@ model Addon {
 
   menuItemId String?
   menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
   categoryId  String
   category    MenuCategory @relation(fields: [categoryId], references: [id])
+
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   @@map("addons")
 }

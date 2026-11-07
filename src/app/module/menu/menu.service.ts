@@ -11,6 +11,7 @@ import {
   deleteAddonParams,
   deleteMenuCategoryInput,
   deleteMenuItemParams,
+  getAddonsForSelectInput,
   getAddonsInput,
   getMenuCategoryInput,
   getMenuItemsQueryInput,
@@ -18,6 +19,7 @@ import {
   updateMenuCategoryInput,
   updateMenuItemInput,
 } from "./menu.types";
+import { cloudinary } from "../../../helper/cloudinary";
 
 const createMenuCategoryInToDB = async (payload: createMenuCategoryInput) => {
   return db.menuCategory.create({
@@ -166,10 +168,14 @@ const getMenuCategoriesForSelect = async () => {
 };
 
 //////////// MenuItems  //////////////
+
 const createMenuItemInToDB = async (payload: createMenuItemInput) => {
-  // Check if the provided categoryId actually exists
+  const { categoryId, addons, ...menuItemData } = payload;
+
+  // Check category
   const isCategoryExists = await db.menuCategory.findUnique({
-    where: { id: payload.categoryId },
+    where: { id: categoryId },
+    select: { id: true },
   });
 
   if (!isCategoryExists) {
@@ -179,8 +185,38 @@ const createMenuItemInToDB = async (payload: createMenuItemInput) => {
     );
   }
 
+  // Check addons
+  if (addons.length > 0) {
+    const existingAddons = await db.addon.findMany({
+      where: {
+        id: { in: addons },
+      },
+      select: { id: true },
+    });
+
+    if (existingAddons.length !== new Set(addons).size) {
+      throw new AppError(
+        status.NOT_FOUND,
+        "One or more specified addons were not found!",
+      );
+    }
+  }
+
+  // Create menu item
   const result = await db.menuItem.create({
-    data: payload,
+    data: {
+      ...menuItemData,
+      category: {
+        connect: { id: categoryId },
+      },
+      addons: {
+        connect: addons.map((id) => ({ id })),
+      },
+    },
+    include: {
+      category: true,
+      addons: true,
+    },
   });
 
   return result;
@@ -269,10 +305,7 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
     limit = 10,
     searchTerm,
     categoryId,
-    minPrice,
-    maxPrice,
     isAvailable,
-    sortBy = "createdAt",
     sortOrder = "desc",
   } = query;
 
@@ -305,14 +338,6 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
 
     // 4. Availability filter
     ...(typeof isAvailable === "boolean" && { isAvailable }),
-
-    // 5. Price range filter
-    ...((minPrice !== undefined || maxPrice !== undefined) && {
-      price: {
-        ...(minPrice !== undefined && { gte: minPrice }),
-        ...(maxPrice !== undefined && { lte: maxPrice }),
-      },
-    }),
   };
 
   // Run data query and total count query in a single transaction
@@ -322,7 +347,7 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
       skip,
       take: limitNumber,
       orderBy: {
-        [sortBy]: sortOrder,
+        createdAt: sortOrder,
       },
       include: {
         category: {
@@ -331,7 +356,7 @@ const getMenuItemsInToDB = async (query: getMenuItemsQueryInput) => {
             name: true,
           },
         },
-        addons: true, // Includes related addons
+        addons: true,
       },
     }),
 
@@ -406,16 +431,12 @@ const updateAddonInToDB = async (payload: updateAddonInput) => {
   const data: Prisma.AddonUpdateInput = {};
 
   const name = input.name;
-  const menuItemId = input.menuItemId ?? existingAddon.menuItemId;
-  const categoryId = input.categoryId ?? existingAddon.categoryId;
 
   if (name !== undefined) {
     const duplicate = await db.addon.findFirst({
       where: {
         id: { not: addonId },
         name: { equals: name, mode: "insensitive" },
-        menuItemId,
-        categoryId,
       },
       select: { id: true },
     });
@@ -438,14 +459,6 @@ const updateAddonInToDB = async (payload: updateAddonInput) => {
     data.isAvailable = input.isAvailable;
   }
 
-  if (input.menuItemId !== undefined) {
-    data.menuItem = { connect: { id: input.menuItemId } };
-  }
-
-  if (input.categoryId !== undefined) {
-    data.category = { connect: { id: input.categoryId } };
-  }
-
   if (Object.keys(data).length === 0) {
     throw new Error("Provide at least one field to update");
   }
@@ -466,7 +479,29 @@ const deleteAddonInToDB = async (payload: deleteAddonParams) => {
     select: { id: true },
   });
 
-  if (!existingAddon) throw new AppError(status.NOT_FOUND, "Addon not found");
+  if (!existingAddon) {
+    throw new AppError(status.NOT_FOUND, "Addon not found");
+  }
+
+  const isUsedByMenuItem = await db.menuItem.findFirst({
+    where: {
+      addons: {
+        some: {
+          id: payload.id,
+        },
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (isUsedByMenuItem) {
+    throw new AppError(
+      status.CONFLICT,
+      "Cannot delete this addon because it is assigned to a menu item.",
+    );
+  }
 
   return db.addon.delete({
     where: { id: payload.id },
@@ -524,6 +559,47 @@ const getAddonInToDB = async (payload: getAddonsInput) => {
   };
 };
 
+const deleteMenuImage = async (payload: { publicId: string }) => {
+  const { publicId } = payload;
+
+  if (typeof publicId !== "string" || !publicId.startsWith("menu-items/")) {
+    throw new AppError(status.BAD_REQUEST, "Invalid image public ID");
+  }
+
+  const result = await cloudinary.uploader.destroy(publicId);
+
+  if (result.result !== "ok" && result.result !== "not found") {
+    throw new AppError(status.INTERNAL_SERVER_ERROR, "Failed to delete image");
+  }
+};
+
+const getMenuAddonsForSelect = async (query: getAddonsForSelectInput) => {
+  const { categoryId, search } = query;
+
+  return db.addon.findMany({
+    where: {
+      ...(categoryId && { categoryId }),
+
+      ...(search && {
+        name: {
+          contains: search.trim(),
+          mode: "insensitive",
+        },
+      }),
+    },
+
+    select: {
+      id: true,
+      name: true,
+      price: true,
+    },
+
+    orderBy: {
+      name: "asc",
+    },
+  });
+};
+
 export const menuService = {
   createMenuCategoryInToDB,
   updateMenuCategoryInToDB,
@@ -540,4 +616,6 @@ export const menuService = {
   deleteAddonInToDB,
   updateAddonInToDB,
   getAddonInToDB,
+  deleteMenuImage,
+  getMenuAddonsForSelect,
 };

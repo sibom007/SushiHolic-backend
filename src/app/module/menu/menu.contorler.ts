@@ -146,7 +146,7 @@ const updateAddon = catchAsync(async (req, res) => {
 
 const deleteAddon = catchAsync(async (req, res) => {
   const id = req.params.id as string;
-  const result = await menuService.deleteAddonInToDB({ addonId: id });
+  const result = await menuService.deleteAddonInToDB({ id });
   sendResponse(res, {
     statusCode: status.OK,
     success: true,
@@ -158,11 +158,31 @@ const deleteAddon = catchAsync(async (req, res) => {
 const getAddons = catchAsync(async (req, res) => {
   const query = res.locals.query || req.query;
   const result = await menuService.getAddonInToDB(query);
-
   sendResponse(res, {
     statusCode: status.OK,
     success: true,
     message: "Addons retrieved successfully!",
+    data: result,
+  });
+});
+
+const getMenuAddonsForSelect = catchAsync(async (req, res) => {
+  const query = res.locals.query || req.query;
+  const result = await menuService.getMenuAddonsForSelect(query);
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "menu Addons successfully!",
+    data: result,
+  });
+});
+
+const deleteMenuImage = catchAsync(async (req, res) => {
+  const result = await menuService.deleteMenuImage(req.body);
+  sendResponse(res, {
+    statusCode: status.OK,
+    success: true,
+    message: "Image deleted successfully!",
     data: result,
   });
 });
@@ -182,5 +202,7 @@ export const menuContorler = {
   createAddon,
   deleteAddon,
   updateAddon,
+  deleteMenuImage,
   getAddons,
+  getMenuAddonsForSelect,
 };

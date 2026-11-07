@@ -9,4 +9,7 @@ export default {
   cors_url: process.env.CORS_URL!,
   supabase_url: process.env.SUPABASE_URL!,
   supabase_publishable_key: process.env.SUPABASE_PUBLISHABLE_KEY!,
+  cloudinary_cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
+  cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
 };

@@ -141,4 +141,19 @@ router.get(
   menuContorler.getAddons,
 );
 
+router.get(
+  "/get-menu-addons-select",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  validateRequest({ query: menuSchema.getAddonsForSelectSchema }),
+  menuContorler.getMenuAddonsForSelect,
+);
+
+router.delete(
+  "/menu-image",
+  requireAuth(UserRole.OWNER),
+  createRateLimiter({ limit: 100 }),
+  menuContorler.deleteMenuImage,
+);
+
 export const menuRoutes = router;

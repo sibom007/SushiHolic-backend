@@ -65,6 +65,7 @@ export const createMenuItemSchema = z.object({
   imageUrl: ManuItemImageUrl,
   isAvailable: ManuItemisAvailable,
   categoryId: id,
+  addons: z.array(id),
 });
 
 export const updateMenuItemSchema = z.object({
@@ -97,13 +98,7 @@ const getMenuItemsQuerySchema = z.object({
   limit,
   searchTerm: z.string().trim().optional(), // Searches both name & description
   categoryId: id.optional(),
-  minPrice: z.coerce.number().nonnegative("Min price must be >= 0").optional(),
-  maxPrice: z.coerce.number().positive("Max price must be > 0").optional(),
   isAvailable: booleanQuerySchema,
-  isDelete: booleanQuerySchema.default(false), // Defaults to non-deleted items
-  sortBy: z
-    .enum(["createdAt", "price", "name", "updatedAt"])
-    .default("createdAt"),
   sortOrder: z.enum(["asc", "desc"]).default("desc"),
 });
 
@@ -139,21 +134,11 @@ const updateAddonSchema = z.object({
   name: AddonName.optional(),
   price: AddonPrice.optional(),
   isAvailable: AddonsIsAvailable.optional(),
-  categoryId: id.optional(),
-  menuItemId: id.optional(),
 });
 
 const deleteAddonSchema = z.object({
   id,
 });
-
-// const getAddonsSchema = z.object({
-//   page,
-//   limit,
-//   name: AddonName.optional(),
-//   price: AddonPrice.optional(),
-//   isAvailable: AddonsIsAvailable.optional(),
-// });
 
 const getAddonsSchema = z.object({
   page,
@@ -176,6 +161,10 @@ const getAddonsSchema = z.object({
     .transform((value) => (value === undefined ? undefined : value === "true")),
 });
 
+const getAddonsForSelectSchema = z.object({
+  categoryId: id,
+  search: z.string().optional(),
+});
 export const menuSchema = {
   createMenuCategorySchema,
   updateMenuCategorySchema,
@@ -195,4 +184,5 @@ export const menuSchema = {
   updateAddonSchema,
   deleteAddonSchema,
   getAddonsSchema,
+  getAddonsForSelectSchema,
 };
